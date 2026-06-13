@@ -1,0 +1,8 @@
+{
+  "systemBlocks": ["system-cluster-concept", "tool-use-follow-up"],
+  "tools": [
+    { "name": "search_taxonomy", "descriptionBlock": "tools/search-taxonomy" },
+    { "name": "get_section_text", "descriptionBlock": "tools/get-section-text" }
+  ],
+  "loopPolicy": { "maxIterations": 3, "perCallTimeoutSeconds": 120, "tokenBudget": null }
+}
