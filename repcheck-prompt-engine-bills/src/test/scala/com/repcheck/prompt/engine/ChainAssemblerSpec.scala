@@ -5,7 +5,6 @@ import cats.effect.testing.scalatest.AsyncIOSpec
 
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
-import repcheck.shared.models.llm.tool.LlmTool
 
 class ChainAssemblerSpec extends AsyncFlatSpec with AsyncIOSpec with Matchers {
 
@@ -19,24 +18,19 @@ class ChainAssemblerSpec extends AsyncFlatSpec with AsyncIOSpec with Matchers {
   private val blocks = Map(
     "system-cluster-concept" -> "You classify a cluster of bill sections into one concept.",
     "tool-use-follow-up"     -> "Gather via tools, iterate only if needed, submit when confident.",
-    "tools/search-taxonomy"  -> "Searches the active taxonomy by vector similarity.",
   )
 
   private val loader = new InMemoryBlockLoader(blocks, Map("cluster-concept" -> profileJson))
-  private val available: Map[String, LlmTool[IO]] = Map("search_taxonomy" -> new EchoTool("search_taxonomy"))
 
   private def assembler: IO[ChainAssembler[IO]] =
-    DefaultToolRegistry
-      .load[IO](loader, available, List("cluster-concept"))
-      .flatMap(registry => DefaultChainAssembler.load[IO](loader, registry, List("cluster-concept")))
+    DefaultChainAssembler.load[IO](loader, List("cluster-concept"))
 
-  "assemble" should "compose system blocks in order then the GCS-described tools, messages empty" in {
+  "assemble" should "compose ONLY the profile's system blocks in order, messages empty — no tool handling" in {
     assembler.flatMap(_.assemble("cluster-concept")).asserting { prompt =>
       prompt.messages shouldBe Nil
       prompt.system shouldBe
         "You classify a cluster of bill sections into one concept.\n\n" +
-        "Gather via tools, iterate only if needed, submit when confident.\n\n" +
-        "Tool: search_taxonomy\nSearches the active taxonomy by vector similarity."
+        "Gather via tools, iterate only if needed, submit when confident."
     }
   }
 
@@ -49,14 +43,18 @@ class ChainAssemblerSpec extends AsyncFlatSpec with AsyncIOSpec with Matchers {
 
   it should "raise PromptBlockNotFound when a declared system block is missing at load" in {
     val brokenLoader = new InMemoryBlockLoader(blocks - "tool-use-follow-up", Map("cluster-concept" -> profileJson))
-    DefaultToolRegistry
-      .load[IO](brokenLoader, available, List("cluster-concept"))
-      .flatMap(registry => DefaultChainAssembler.load[IO](brokenLoader, registry, List("cluster-concept")))
-      .attempt
-      .asserting {
-        case Left(e: PromptBlockNotFound) => e.blockId shouldBe "tool-use-follow-up"
-        case other                        => fail(s"expected PromptBlockNotFound, got $other")
-      }
+    DefaultChainAssembler.load[IO](brokenLoader, List("cluster-concept")).attempt.asserting {
+      case Left(e: PromptBlockNotFound) => e.blockId shouldBe "tool-use-follow-up"
+      case other                        => fail(s"expected PromptBlockNotFound, got $other")
+    }
+  }
+
+  it should "raise PromptProfileParseFailed on a malformed profile document" in {
+    val brokenLoader = new InMemoryBlockLoader(blocks, Map("cluster-concept" -> "{ not json"))
+    DefaultChainAssembler.load[IO](brokenLoader, List("cluster-concept")).attempt.asserting {
+      case Left(e: PromptProfileParseFailed) => e.profile shouldBe "cluster-concept"
+      case other                             => fail(s"expected PromptProfileParseFailed, got $other")
+    }
   }
 
 }
