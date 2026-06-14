@@ -17,7 +17,7 @@ class AgenticTaskSpecSpec extends AnyFlatSpec with Matchers {
       |    {"stage":"system","promptFragmentNames":["system-cluster-concept-identification"],"weight":1.0},
       |    {"stage":"custom","promptFragmentNames":["tool-use-follow-up"],"weight":1.0}
       |  ],
-      |  "tools": [{"name":"search_taxonomy","descriptionBlock":"tools/search-taxonomy"}],
+      |  "tools": [{"name":"search_taxonomy","descriptionRef":"tools/search-taxonomy"}],
       |  "loopPolicy": {"maxIterations": 3, "perCallTimeoutSeconds": 120, "tokenBudget": null}
       |}""".stripMargin
 
