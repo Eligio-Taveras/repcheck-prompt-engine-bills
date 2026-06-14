@@ -32,7 +32,7 @@ lazy val commonSettings = Seq(
   },
   resolvers ++= Seq(
     "GitHub Packages - shared-models" at "https://maven.pkg.github.com/Eligio-Taveras/repcheck-shared-models",
-    "GitHub Packages - pipeline-models" at "https://maven.pkg.github.com/Eligio-Taveras/repcheck-pipeline-models",
+    "GitHub Packages - repcheck-utils" at "https://maven.pkg.github.com/Eligio-Taveras/repcheck-utils",
   ),
   libraryDependencies ++= Seq(
     "org.scalatest" %% "scalatest" % "3.2.18" % Test
@@ -76,12 +76,19 @@ lazy val repcheckpromptenginebills = (project in file("repcheck-prompt-engine-bi
   .settings(
     commonSettings,
     name := "repcheck-prompt-engine-bills",
-    libraryDependencies ++= http4sEmber ++ circe ++ pureConfig ++ fs2
-      ++ catsEffect ++ testDeps
-    ,
-    libraryDependencies += "com.h2database" % "h2" % "2.2.224" % Test,
-    libraryDependencies += "com.repcheck" %% "repchecksharedmodels" % "0.1.2",
-    libraryDependencies += "com.repcheck" %% "repcheck-pipeline-models" % "0.1.3",
+    // F4 library: GCS prompt-fragment loader + assembler + tool registry. No HTTP, no streaming.
+    libraryDependencies ++= circe ++ pureConfig ++ catsEffect ++ testDeps,
+    libraryDependencies += "com.google.cloud" % "google-cloud-storage" % "2.43.2", // GCS Java SDK, Sync-wrapped
+    libraryDependencies += "com.google.cloud" % "google-cloud-nio" % "0.127.28" % Test, // LocalStorageHelper in-memory GCS
+    libraryDependencies += "com.repcheck" %% "repchecksharedmodels" % "0.1.58", // F1 contracts + §1.7 PromptFragment/chain
+    libraryDependencies += "com.repcheck" %% "repcheck-utils" % "0.1.5", // RetryWrapper + DockerRequired tag
+    // DockerRequired specs need a fake-gcs-server container; excluded from `sbt test` (run them explicitly, see README)
+    Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-l", "DockerRequired"),
+    Test / scalacOptions += "-Wconf:msg=unused value of type:s",
+    Test / scalacOptions += "-Wconf:msg=is not declared infix:s",
+    coverageMinimumStmtPerFile   := 95,
+    coverageMinimumBranchPerFile := 95,
+    coverageFailOnMinimum         := true,
     // Circe semi-auto derivation for large case classes
     scalacOptions += "-Xmax-inlines:64",
     exceptionUniquenessRootPackages := Seq("com.repcheck")

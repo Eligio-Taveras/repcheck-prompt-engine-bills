@@ -1,0 +1,15 @@
+{
+  "name": "taxonomy-build",
+  "chain": [
+    { "stage": "system", "promptFragmentNames": ["system-taxonomy-build"], "weight": 1.0 },
+    { "stage": "custom", "promptFragmentNames": ["tool-use-follow-up"], "weight": 1.0 }
+  ],
+  "tools": [
+    { "name": "list_concepts", "descriptionBlock": "tools/list-concepts" },
+    { "name": "semantic_search_concepts", "descriptionBlock": "tools/semantic-search-concepts" },
+    { "name": "search_taxonomy", "descriptionBlock": "tools/search-taxonomy" },
+    { "name": "list_unclassified", "descriptionBlock": "tools/list-unclassified" },
+    { "name": "propose_taxonomy_node", "descriptionBlock": "tools/propose-taxonomy-node" }
+  ],
+  "loopPolicy": { "maxIterations": 8, "perCallTimeoutSeconds": 180, "tokenBudget": null }
+}

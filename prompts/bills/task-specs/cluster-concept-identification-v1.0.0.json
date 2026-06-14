@@ -1,0 +1,12 @@
+{
+  "name": "cluster-concept-identification",
+  "chain": [
+    { "stage": "system", "promptFragmentNames": ["system-cluster-concept-identification"], "weight": 1.0 },
+    { "stage": "custom", "promptFragmentNames": ["tool-use-follow-up"], "weight": 1.0 }
+  ],
+  "tools": [
+    { "name": "search_taxonomy", "descriptionBlock": "tools/search-taxonomy" },
+    { "name": "get_section_text", "descriptionBlock": "tools/get-section-text" }
+  ],
+  "loopPolicy": { "maxIterations": 3, "perCallTimeoutSeconds": 120, "tokenBudget": null }
+}
