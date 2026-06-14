@@ -1,8 +1,8 @@
 {
   "name": "cluster-concept-identification",
   "chain": [
-    { "stage": "system", "blockNames": ["system-cluster-concept-identification"], "weight": 1.0 },
-    { "stage": "custom", "blockNames": ["tool-use-follow-up"], "weight": 1.0 }
+    { "stage": "system", "promptFragmentNames": ["system-cluster-concept-identification"], "weight": 1.0 },
+    { "stage": "custom", "promptFragmentNames": ["tool-use-follow-up"], "weight": 1.0 }
   ],
   "tools": [
     { "name": "search_taxonomy", "descriptionBlock": "tools/search-taxonomy" },

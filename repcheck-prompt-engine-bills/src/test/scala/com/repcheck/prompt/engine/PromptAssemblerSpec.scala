@@ -5,30 +5,30 @@ import cats.effect.testing.scalatest.AsyncIOSpec
 
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
-import repcheck.shared.models.prompt.{InstructionBlock, PromptStage, StageConfig}
+import repcheck.shared.models.prompt.{PromptFragment, PromptStage, StageConfig}
 
 class PromptAssemblerSpec extends AsyncFlatSpec with AsyncIOSpec with Matchers {
 
-  private def block(name: String, stage: PromptStage, weight: Double, content: String): InstructionBlock =
-    InstructionBlock(name, stage, weight, "v1.0.0", content)
+  private def fragment(name: String, stage: PromptStage, weight: Double, content: String): PromptFragment =
+    PromptFragment(name, stage, weight, "v1.0.0", content)
 
-  private val sys  = block("system-cluster-concept-identification", PromptStage.System, 1.0, "Identify the concept.")
-  private val loop = block("tool-use-follow-up", PromptStage.Custom, 1.0, "Gather, then submit.")
+  private val sys  = fragment("system-cluster-concept-identification", PromptStage.System, 1.0, "Identify the concept.")
+  private val loop = fragment("tool-use-follow-up", PromptStage.Custom, 1.0, "Gather, then submit.")
 
-  private val clusterProfile = AgenticProfile(
+  private val clusterTaskSpec = AgenticTaskSpec(
     name = "cluster-concept-identification",
     chain = List(
       StageConfig(PromptStage.System, List("system-cluster-concept-identification"), 1.0),
       StageConfig(PromptStage.Custom, List("tool-use-follow-up"), 1.0),
     ),
     tools = List(ToolBinding("search_taxonomy", "tools/search-taxonomy")),
-    loopPolicy = AgenticProfile.LoopPolicyDoc(3, 120, None),
+    loopPolicy = AgenticTaskSpec.LoopPolicyDoc(3, 120, None),
   )
 
-  private def assembler(blocks: InstructionBlock*): IO[PromptAssembler[IO]] = {
-    val loader = new InMemoryBlockLoader(
-      blocks.map(b => b.name -> b).toMap,
-      Map("cluster-concept-identification" -> clusterProfile),
+  private def assembler(fragments: PromptFragment*): IO[PromptAssembler[IO]] = {
+    val loader = new InMemoryPromptLoader(
+      fragments.map(f => f.name -> f).toMap,
+      Map("cluster-concept-identification" -> clusterTaskSpec),
     )
     DefaultPromptAssembler.load[IO](loader, List("cluster-concept-identification"))
   }
@@ -40,14 +40,14 @@ class PromptAssemblerSpec extends AsyncFlatSpec with AsyncIOSpec with Matchers {
     }
   }
 
-  it should "inject {{placeholders}} into Context-stage blocks" in {
-    val ctxBlock = block("cluster-sections", PromptStage.Context, 0.8, "Sections:\n{{cluster_sections}}")
-    val profile = clusterProfile.copy(chain =
-      clusterProfile.chain :+ StageConfig(PromptStage.Context, List("cluster-sections"), 0.8)
+  it should "inject {{placeholders}} into Context-stage fragments" in {
+    val ctxFragment = fragment("cluster-sections", PromptStage.Context, 0.8, "Sections:\n{{cluster_sections}}")
+    val taskSpec = clusterTaskSpec.copy(chain =
+      clusterTaskSpec.chain :+ StageConfig(PromptStage.Context, List("cluster-sections"), 0.8)
     )
-    val loader = new InMemoryBlockLoader(
-      List(sys, loop, ctxBlock).map(b => b.name -> b).toMap,
-      Map("cluster-concept-identification" -> profile),
+    val loader = new InMemoryPromptLoader(
+      List(sys, loop, ctxFragment).map(f => f.name -> f).toMap,
+      Map("cluster-concept-identification" -> taskSpec),
     )
     DefaultPromptAssembler
       .load[IO](loader, List("cluster-concept-identification"))
@@ -58,23 +58,23 @@ class PromptAssemblerSpec extends AsyncFlatSpec with AsyncIOSpec with Matchers {
       }
   }
 
-  it should "raise UnknownProfile for a profile that was not loaded" in {
+  it should "raise UnknownTaskSpec for a task spec that was not loaded" in {
     assembler(sys, loop).flatMap(_.assemble("nope", Map.empty)).attempt.asserting {
-      case Left(e: UnknownProfile) => e.profile shouldBe "nope"
-      case other                   => fail(s"expected UnknownProfile, got $other")
+      case Left(e: UnknownTaskSpec) => e.taskSpec shouldBe "nope"
+      case other                    => fail(s"expected UnknownTaskSpec, got $other")
     }
   }
 
-  it should "raise PromptBlockNotFound when a chain block is missing at load" in {
-    assembler(sys).attempt.asserting { // 'loop' block omitted
-      case Left(e: PromptBlockNotFound) => e.blockId shouldBe "tool-use-follow-up"
-      case other                        => fail(s"expected PromptBlockNotFound, got $other")
+  it should "raise PromptObjectNotFound when a chain fragment is missing at load" in {
+    assembler(sys).attempt.asserting { // 'loop' fragment omitted
+      case Left(e: PromptObjectNotFound) => e.id shouldBe "tool-use-follow-up"
+      case other                         => fail(s"expected PromptObjectNotFound, got $other")
     }
   }
 
-  "assembleOne" should "raise PromptAssemblyFailed when a chain block is absent from the blocks map" in {
-    DefaultPromptAssembler.assembleOne(clusterProfile, Map.empty, Map.empty) match {
-      case Left(e: PromptAssemblyFailed) => e.profile shouldBe "cluster-concept-identification"
+  "assembleOne" should "raise PromptAssemblyFailed when a chain fragment is absent from the map" in {
+    DefaultPromptAssembler.assembleOne(clusterTaskSpec, Map.empty, Map.empty) match {
+      case Left(e: PromptAssemblyFailed) => e.taskSpec shouldBe "cluster-concept-identification"
       case other                         => fail(s"expected PromptAssemblyFailed, got $other")
     }
   }

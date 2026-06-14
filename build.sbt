@@ -80,7 +80,7 @@ lazy val repcheckpromptenginebills = (project in file("repcheck-prompt-engine-bi
     libraryDependencies ++= circe ++ pureConfig ++ catsEffect ++ testDeps,
     libraryDependencies += "com.google.cloud" % "google-cloud-storage" % "2.43.2", // GCS Java SDK, Sync-wrapped
     libraryDependencies += "com.google.cloud" % "google-cloud-nio" % "0.127.28" % Test, // LocalStorageHelper in-memory GCS
-    libraryDependencies += "com.repcheck" %% "repchecksharedmodels" % "0.1.56", // F1 contracts (llm/*, llm/prompt)
+    libraryDependencies += "com.repcheck" %% "repchecksharedmodels" % "0.1.58", // F1 contracts + §1.7 PromptFragment/chain
     libraryDependencies += "com.repcheck" %% "repcheck-utils" % "0.1.5", // RetryWrapper + DockerRequired tag
     // DockerRequired specs need a fake-gcs-server container; excluded from `sbt test` (run them explicitly, see README)
     Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-l", "DockerRequired"),
