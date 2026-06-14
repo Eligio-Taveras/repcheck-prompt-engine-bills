@@ -27,7 +27,7 @@ class ToolRegistrySpec extends AsyncFlatSpec with AsyncIOSpec with Matchers {
   private val available: Map[String, LlmTool[IO]] = Map("search_taxonomy" -> new EchoTool("search_taxonomy"))
 
   "load" should "bind declared tools with their GCS description overriding the code default" in {
-    DefaultToolRegistry.load[IO](loader(), available, List("cluster-concept-identification")).asserting { registry =>
+    DefaultToolRegistry.load[IO](loader(), available, List("cluster-concept-identification"), 4).asserting { registry =>
       registry.toolsFor("cluster-concept-identification") match {
         case Right(tools) =>
           val _ = tools.map(_.spec.name) shouldBe List("search_taxonomy")
@@ -38,13 +38,13 @@ class ToolRegistrySpec extends AsyncFlatSpec with AsyncIOSpec with Matchers {
   }
 
   it should "expose the task spec's loop policy" in {
-    DefaultToolRegistry.load[IO](loader(), available, List("cluster-concept-identification")).asserting { registry =>
+    DefaultToolRegistry.load[IO](loader(), available, List("cluster-concept-identification"), 4).asserting { registry =>
       registry.policyFor("cluster-concept-identification").map(_.maxIterations) shouldBe Right(3)
     }
   }
 
   it should "keep the code-side schemas/examples while overriding only the description" in {
-    DefaultToolRegistry.load[IO](loader(), available, List("cluster-concept-identification")).asserting { registry =>
+    DefaultToolRegistry.load[IO](loader(), available, List("cluster-concept-identification"), 4).asserting { registry =>
       val tool =
         registry.toolsFor("cluster-concept-identification").toOption.flatMap(_.headOption).getOrElse(fail("no tool"))
       tool.spec.parametersSchema shouldBe available("search_taxonomy").spec.parametersSchema
@@ -52,7 +52,7 @@ class ToolRegistrySpec extends AsyncFlatSpec with AsyncIOSpec with Matchers {
   }
 
   it should "fail loudly at load on a tool name with no code impl" in {
-    DefaultToolRegistry.load[IO](loader(), Map.empty, List("cluster-concept-identification")).attempt.asserting {
+    DefaultToolRegistry.load[IO](loader(), Map.empty, List("cluster-concept-identification"), 4).attempt.asserting {
       case Left(e: UnknownToolBinding) =>
         val _ = e.toolName shouldBe "search_taxonomy"
         e.taskSpec shouldBe "cluster-concept-identification"
@@ -62,7 +62,7 @@ class ToolRegistrySpec extends AsyncFlatSpec with AsyncIOSpec with Matchers {
 
   it should "fail loudly at load on a missing task-spec object" in {
     DefaultToolRegistry
-      .load[IO](loader(Map.empty), available, List("cluster-concept-identification"))
+      .load[IO](loader(Map.empty), available, List("cluster-concept-identification"), 4)
       .attempt
       .asserting {
         case Left(e: PromptObjectNotFound) => e.id shouldBe "cluster-concept-identification"
@@ -71,7 +71,7 @@ class ToolRegistrySpec extends AsyncFlatSpec with AsyncIOSpec with Matchers {
   }
 
   "lookups" should "return Left(UnknownTaskSpec) for a task spec that was not loaded — total, no throw" in {
-    DefaultToolRegistry.load[IO](loader(), available, List("cluster-concept-identification")).asserting { registry =>
+    DefaultToolRegistry.load[IO](loader(), available, List("cluster-concept-identification"), 4).asserting { registry =>
       val _ = registry.toolsFor("nope") match {
         case Left(UnknownTaskSpec(taskSpec, known)) =>
           val _ = taskSpec shouldBe "nope"

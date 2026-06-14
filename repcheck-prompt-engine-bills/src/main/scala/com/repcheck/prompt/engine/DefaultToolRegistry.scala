@@ -1,6 +1,7 @@
 package com.repcheck.prompt.engine
 
-import cats.MonadThrow
+import cats.effect.Concurrent
+import cats.effect.syntax.all._
 import cats.syntax.all._
 
 import repcheck.shared.models.llm.agentic.LoopPolicy
@@ -25,40 +26,45 @@ final class DefaultToolRegistry[F[_]] private (resolved: Map[String, ResolvedTas
 object DefaultToolRegistry {
 
   /**
-   * Read + validate every task spec ONCE. Fails loudly here — not at classify time — on a malformed task-spec document
+   * Read + validate every task spec ONCE, resolving task specs (and the tools within each) concurrently up to
+   * `concurrency`. Fails loudly here — not at classify time — on a malformed task-spec document
    * ([[PromptTaskSpecParseFailed]]) or a declared tool name with no matching code impl ([[UnknownToolBinding]]). After
    * this returns, lookups are pure and total.
    *
    * @param available
    *   the code [[LlmTool]] impls keyed by their stable name; a task spec may grant any subset (least privilege)
+   * @param concurrency
+   *   max in-flight GCS loads (bounds both the task-spec fan-out and the per-task-spec tool fan-out)
    */
-  def load[F[_]: MonadThrow](
+  def load[F[_]: Concurrent](
     loader: PromptLoader[F],
     available: Map[String, LlmTool[F]],
     taskSpecNames: List[String],
+    concurrency: Int,
   ): F[ToolRegistry[F]] =
     taskSpecNames
-      .traverse(name => resolveTaskSpec(loader, available, name).map(name -> _))
+      .parTraverseN(concurrency)(name => resolveTaskSpec(loader, available, name, concurrency).map(name -> _))
       .map(pairs => new DefaultToolRegistry[F](pairs.toMap))
 
-  private def resolveTaskSpec[F[_]: MonadThrow](
+  private def resolveTaskSpec[F[_]: Concurrent](
     loader: PromptLoader[F],
     available: Map[String, LlmTool[F]],
     taskSpecName: String,
+    concurrency: Int,
   ): F[ResolvedTaskSpec[F]] =
     for {
       taskSpec <- loader.loadTaskSpec(taskSpecName)
-      tools    <- taskSpec.tools.traverse(binding => bindTool(loader, available, taskSpecName, binding))
+      tools <- taskSpec.tools.parTraverseN(concurrency)(binding => bindTool(loader, available, taskSpecName, binding))
     } yield ResolvedTaskSpec(tools, taskSpec.loopPolicy.toLoopPolicy)
 
-  private def bindTool[F[_]: MonadThrow](
+  private def bindTool[F[_]: Concurrent](
     loader: PromptLoader[F],
     available: Map[String, LlmTool[F]],
     taskSpecName: String,
     binding: ToolBinding,
   ): F[LlmTool[F]] =
     available.get(binding.name) match {
-      case None => MonadThrow[F].raiseError(UnknownToolBinding(taskSpecName, binding.name, available.keySet))
+      case None => UnknownToolBinding(taskSpecName, binding.name, available.keySet).raiseError[F, LlmTool[F]]
       case Some(impl) =>
         loader.loadToolDescription(binding.descriptionRef).map(description => new DescribedTool[F](impl, description))
     }
