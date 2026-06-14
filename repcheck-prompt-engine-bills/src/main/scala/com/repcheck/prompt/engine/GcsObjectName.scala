@@ -7,8 +7,8 @@ package com.repcheck.prompt.engine
  */
 private[engine] object GcsObjectName {
 
-  def block(prefix: String, blockId: String, version: String): String =
-    s"${join(prefix, blockId)}-$version.md"
+  def block(prefix: String, blockName: String, version: String): String =
+    s"${join(prefix, blockName)}-$version.json"
 
   def profile(prefix: String, profileName: String, version: String): String =
     s"${join(prefix, "profiles", profileName)}-$version.json"

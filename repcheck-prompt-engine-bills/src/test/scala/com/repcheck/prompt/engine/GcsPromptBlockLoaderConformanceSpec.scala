@@ -9,6 +9,7 @@ import com.google.cloud.storage.{BlobId, BlobInfo, Storage, StorageOptions}
 
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
+import repcheck.shared.models.prompt.PromptStage
 
 import com.repcheck.utils.tags.DockerRequired
 
@@ -44,16 +45,24 @@ class GcsPromptBlockLoaderConformanceSpec extends AsyncFlatSpec with AsyncIOSpec
 
   private def loader: GcsPromptBlockLoader[IO] = new GcsPromptBlockLoader[IO](storage, bucket, prefix, version)
 
-  "the loader against a real GCS server" should "read a block by its versioned object name" taggedAs DockerRequired in {
-    val setup = ensureBucket() *> put("bills/system-cluster-concept-v1.0.0.md", "block body")
-    (setup *> loader.load("system-cluster-concept")).asserting(_ shouldBe "block body")
+  "the loader against a real GCS server" should "read and decode a block by its versioned object name" taggedAs DockerRequired in {
+    val body =
+      """{"name":"system-cluster-concept-identification","stage":"system","weight":1.0,"version":"v1.0.0","content":"block body"}"""
+    val setup = ensureBucket() *> put("bills/system-cluster-concept-identification-v1.0.0.json", body)
+    (setup *> loader.load("system-cluster-concept-identification")).asserting { block =>
+      block.stage shouldBe PromptStage.System
+      block.content shouldBe "block body"
+    }
   }
 
-  it should "read a profile document by its versioned object name" taggedAs DockerRequired in {
+  it should "read and decode an agentic profile document by its versioned object name" taggedAs DockerRequired in {
     val body =
-      """{"systemBlocks":[],"tools":[],"loopPolicy":{"maxIterations":1,"perCallTimeoutSeconds":30,"tokenBudget":null}}"""
+      """{"name":"taxonomy-build","chain":[{"stage":"system","blockNames":["system-taxonomy-build"],"weight":1.0}],"tools":[],"loopPolicy":{"maxIterations":8,"perCallTimeoutSeconds":180,"tokenBudget":null}}"""
     val setup = ensureBucket() *> put("bills/profiles/taxonomy-build-v1.0.0.json", body)
-    (setup *> loader.loadProfile("taxonomy-build")).asserting(_ should include("systemBlocks"))
+    (setup *> loader.loadProfile("taxonomy-build")).asserting { profile =>
+      profile.name shouldBe "taxonomy-build"
+      profile.loopPolicy.maxIterations shouldBe 8
+    }
   }
 
   it should "raise PromptBlockNotFound for a missing object" taggedAs DockerRequired in {

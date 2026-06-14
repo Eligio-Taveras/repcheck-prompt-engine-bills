@@ -1,5 +1,9 @@
 {
-  "systemBlocks": ["system-taxonomy-build", "tool-use-follow-up"],
+  "name": "taxonomy-build",
+  "chain": [
+    { "stage": "system", "blockNames": ["system-taxonomy-build"], "weight": 1.0 },
+    { "stage": "custom", "blockNames": ["tool-use-follow-up"], "weight": 1.0 }
+  ],
   "tools": [
     { "name": "list_concepts", "descriptionBlock": "tools/list-concepts" },
     { "name": "semantic_search_concepts", "descriptionBlock": "tools/semantic-search-concepts" },

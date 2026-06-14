@@ -2,15 +2,18 @@ package com.repcheck.prompt.engine
 
 import cats.effect.IO
 
+import repcheck.shared.models.prompt.InstructionBlock
+
 /**
- * Test seam for the assembler/registry: blocks and profiles served from maps; a miss raises [[PromptBlockNotFound]].
+ * Test seam for the assembler: structured blocks and profiles served from maps; a miss raises [[PromptBlockNotFound]].
  */
-final class InMemoryBlockLoader(blocks: Map[String, String], profiles: Map[String, String]) extends BlockLoader[IO] {
+final class InMemoryBlockLoader(blocks: Map[String, InstructionBlock], profiles: Map[String, AgenticProfile])
+    extends BlockLoader[IO] {
 
-  def load(blockId: String): IO[String] =
-    IO.fromOption(blocks.get(blockId))(PromptBlockNotFound(blockId, "in-memory", blockId))
+  def load(blockName: String): IO[InstructionBlock] =
+    IO.fromOption(blocks.get(blockName))(PromptBlockNotFound(blockName, "in-memory", blockName))
 
-  def loadProfile(profileName: String): IO[String] =
+  def loadProfile(profileName: String): IO[AgenticProfile] =
     IO.fromOption(profiles.get(profileName))(PromptBlockNotFound(profileName, "in-memory", profileName))
 
 }

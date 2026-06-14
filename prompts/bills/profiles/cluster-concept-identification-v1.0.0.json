@@ -1,5 +1,9 @@
 {
-  "systemBlocks": ["system-cluster-concept", "tool-use-follow-up"],
+  "name": "cluster-concept-identification",
+  "chain": [
+    { "stage": "system", "blockNames": ["system-cluster-concept-identification"], "weight": 1.0 },
+    { "stage": "custom", "blockNames": ["tool-use-follow-up"], "weight": 1.0 }
+  ],
   "tools": [
     { "name": "search_taxonomy", "descriptionBlock": "tools/search-taxonomy" },
     { "name": "get_section_text", "descriptionBlock": "tools/get-section-text" }

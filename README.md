@@ -1,14 +1,17 @@
 # repcheck-prompt-engine-bills
 
-Prompt assembly for the bill-decomposition LLM tasks (plan F4). Loads versioned prompt fragments from GCS and composes
-them into the `AssembledPrompt` the llm-adapter runner consumes; binds each profile's declared tool names to injected
-code `LlmTool` impls (overriding only their model-facing descriptions) and carries the per-profile `LoopPolicy`.
+Prompt assembly for the bill-decomposition LLM tasks (plan F4). Loads versioned, **structured** prompt fragments from
+GCS and composes them into the `AssembledPrompt` the llm-adapter runner consumes. The block model and the staged-chain
+assembler are the shared §1.7 types (`repcheck.shared.models.prompt`); this module adds the GCS loader, the bill-facing
+`PromptAssembler`, and the agentic profile wrapper.
 
-- `BlockLoader` / `GcsPromptBlockLoader` — fetch a fragment by logical id (semver in the object name).
-- `ToolRegistry.load` — read + validate every profile ONCE at startup (unknown tool name or malformed profile fails
-  loudly here); after load, `toolsFor` / `policyFor` are pure, total (`Either[UnknownProfile, …]`).
-- `DefaultChainAssembler.load` — pre-assemble each profile's static system prompt once; `assemble(profile)` is a
-  cached pure lookup (per-task content is appended by the caller via `AssembledPrompt.appended`).
+- `BlockLoader` / `GcsPromptBlockLoader` — fetch + decode a fragment by logical name (semver in the object name): a
+  shared `InstructionBlock` by block name, an `AgenticProfile` by profile name.
+- `AgenticProfile` — a profile's staged `chain` (shared §1.7 `StageConfig`s) plus the agentic extras: the `tools` it
+  grants and the `loopPolicy` capping its loop. `promptProfile` bridges the chain to the shared assembler.
+- `DefaultPromptAssembler.load` — pre-load each profile's chain + its blocks once; `assemble(profile, context)`
+  delegates to the shared `DefaultChainAssembler` (stage order + `WeightTranslator` + `{{context}}` injection) →
+  `AssembledPrompt`. Tools + loop policy ride on the profile but are consumed by the registry/runner (PR#2), not here.
 
 ## GCS layout
 
@@ -16,10 +19,8 @@ Buckets are `repcheck-prompts-{dev|stg|prod}`; fragments live under `prompts/bil
 same layout (`scripts/upload-prompts.sh <bucket>`):
 
 ```
-bills/profiles/<profile>-vX.Y.Z.json     # systemBlocks + tools[{name, descriptionBlock}] + loopPolicy
-bills/<system-block>-vX.Y.Z.md           # instruction text
-bills/tool-use-follow-up-vX.Y.Z.md       # shared loop-protocol block
-bills/tools/<tool>-vX.Y.Z.md             # one description block per tool
+bills/profiles/<profile>-vX.Y.Z.json     # AgenticProfile: name + chain[StageConfig] + tools[{name, descriptionBlock}] + loopPolicy
+bills/<block>-vX.Y.Z.json                # a structured InstructionBlock: name, stage, weight, version, content
 ```
 
 The seeded fragments carry **placeholder wording** — author the production prompt content before promoting past dev.

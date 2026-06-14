@@ -5,14 +5,14 @@ import org.scalatest.matchers.should.Matchers
 
 class GcsObjectNameSpec extends AnyFlatSpec with Matchers {
 
-  "block" should "place a markdown block under the prefix with the version suffix" in {
-    GcsObjectName.block("bills", "system-cluster-concept", "v1.0.0") shouldBe
-      "bills/system-cluster-concept-v1.0.0.md"
+  "block" should "place a json block under the prefix with the version suffix" in {
+    GcsObjectName.block("bills", "system-cluster-concept-identification", "v1.0.0") shouldBe
+      "bills/system-cluster-concept-identification-v1.0.0.json"
   }
 
-  it should "keep a nested block id intact" in {
+  it should "keep a nested block name intact" in {
     GcsObjectName.block("bills", "tools/search-taxonomy", "v2.1.0") shouldBe
-      "bills/tools/search-taxonomy-v2.1.0.md"
+      "bills/tools/search-taxonomy-v2.1.0.json"
   }
 
   "profile" should "place a json profile under profiles/ with the version suffix" in {
@@ -21,11 +21,11 @@ class GcsObjectNameSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "tolerate surrounding slashes in the prefix" in {
-    GcsObjectName.block("/bills/", "x", "v1.0.0") shouldBe "bills/x-v1.0.0.md"
+    GcsObjectName.block("/bills/", "x", "v1.0.0") shouldBe "bills/x-v1.0.0.json"
   }
 
   it should "drop an all-slash (empty) prefix entirely" in {
-    GcsObjectName.block("///", "x", "v1.0.0") shouldBe "x-v1.0.0.md"
+    GcsObjectName.block("///", "x", "v1.0.0") shouldBe "x-v1.0.0.json"
   }
 
 }

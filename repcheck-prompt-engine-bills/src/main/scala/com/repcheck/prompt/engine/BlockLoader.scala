@@ -1,16 +1,19 @@
 package com.repcheck.prompt.engine
 
+import repcheck.shared.models.prompt.InstructionBlock
+
 /**
- * Loads prompt fragments by LOGICAL id (e.g. `system-cluster-concept`, `tools/search-taxonomy`) and profile documents
- * by name. The implementation resolves the versioned object name; callers never see filenames. The trait is the test
- * seam — unit specs drive the assembler/registry through an in-memory map; [[GcsPromptBlockLoader]] is the prod impl.
+ * Loads structured prompt fragments by LOGICAL name: an `InstructionBlock` (shared §1.7 — name, stage, weight, content)
+ * by block name, and an [[AgenticProfile]] document by profile name. The implementation resolves + decodes the
+ * versioned object; callers never see filenames or raw JSON. The trait is the test seam — unit specs drive the
+ * assembler through an in-memory map; [[GcsPromptBlockLoader]] is the prod impl.
  */
 trait BlockLoader[F[_]] {
 
-  /** A markdown instruction/description block. Raise [[PromptBlockNotFound]] if the id resolves to no object. */
-  def load(blockId: String): F[String]
+  /** Raise [[PromptBlockNotFound]] (missing object) or [[PromptBlockParseFailed]] (malformed block). */
+  def load(blockName: String): F[InstructionBlock]
 
-  /** A profile's raw JSON document. Raise [[PromptBlockNotFound]] if the profile resolves to no object. */
-  def loadProfile(profileName: String): F[String]
+  /** Raise [[PromptBlockNotFound]] (missing object) or [[PromptProfileParseFailed]] (malformed profile). */
+  def loadProfile(profileName: String): F[AgenticProfile]
 
 }
