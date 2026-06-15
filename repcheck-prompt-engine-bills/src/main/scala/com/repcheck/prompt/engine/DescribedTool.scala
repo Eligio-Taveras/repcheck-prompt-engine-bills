@@ -9,9 +9,8 @@ import repcheck.shared.models.llm.tool.{LlmTool, ToolInputError, ToolSpec}
  * (decode/execute/encode, and the codec-derived schemas + examples) delegates unchanged. This is how a task spec tunes
  * tool wording without a deploy while the contract stays code-owned.
  */
-final private[engine] class DescribedTool[F[_]](val underlying: LlmTool[F], description: String) extends LlmTool[F] {
-  type In  = underlying.In
-  type Out = underlying.Out
+final private[engine] class DescribedTool[F[_], In, Out](underlying: LlmTool[F, In, Out], description: String)
+    extends LlmTool[F, In, Out] {
 
   val spec: ToolSpec = underlying.spec.copy(description = description)
 

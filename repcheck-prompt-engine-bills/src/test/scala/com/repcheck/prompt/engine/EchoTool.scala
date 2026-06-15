@@ -7,9 +7,7 @@ import io.circe.Json
 import repcheck.shared.models.llm.tool.{LlmTool, ToolInputError, ToolSpec}
 
 /** A minimal code-side tool impl for registry tests; its description is what the GCS text overrides. */
-final class EchoTool(name: String) extends LlmTool[IO] {
-  type In  = String
-  type Out = String
+final class EchoTool(name: String) extends LlmTool[IO, String, String] {
 
   val spec: ToolSpec = ToolSpec(name, "code-default description", Json.obj(), Json.obj(), Json.obj(), Json.obj())
 

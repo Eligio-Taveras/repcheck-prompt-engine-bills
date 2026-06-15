@@ -10,7 +10,7 @@ import org.scalatest.matchers.should.Matchers
 
 class DescribedToolSpec extends AsyncFlatSpec with AsyncIOSpec with Matchers {
 
-  private val described = new DescribedTool[IO](new EchoTool("echo"), "GCS-authored description")
+  private val described = new DescribedTool[IO, String, String](new EchoTool("echo"), "GCS-authored description")
 
   "DescribedTool" should "override only the description, keeping name/schemas from the code impl" in {
     val _ = described.spec.name shouldBe "echo"

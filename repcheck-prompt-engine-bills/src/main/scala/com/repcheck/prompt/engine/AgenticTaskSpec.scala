@@ -44,4 +44,9 @@ object AgenticTaskSpec {
   }
 
   given Decoder[AgenticTaskSpec] = deriveDecoder[AgenticTaskSpec]
+
+  /** GCS object name for a task spec: `<prefix>/task-specs/<name>-<version>.json` (guarded against the GCS limit). */
+  def objectName(name: String, prefix: String, version: String): Either[PromptObjectNameTooLong, String] =
+    GcsObjectName.guard(s"${GcsObjectName.join(prefix, "task-specs", name)}-$version.json")
+
 }

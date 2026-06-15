@@ -51,4 +51,9 @@ class AgenticTaskSpecSpec extends AnyFlatSpec with Matchers {
     decode[AgenticTaskSpec](withBudget).map(_.loopPolicy.toLoopPolicy.tokenBudget) shouldBe Right(Some(4096))
   }
 
+  "objectName" should "place a task spec under task-specs/ with the version suffix" in {
+    AgenticTaskSpec.objectName("taxonomy-build", "bills", "v1.0.0") shouldBe
+      Right("bills/task-specs/taxonomy-build-v1.0.0.json")
+  }
+
 }

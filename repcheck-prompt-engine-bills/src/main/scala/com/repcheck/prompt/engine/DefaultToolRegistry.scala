@@ -8,11 +8,11 @@ import repcheck.shared.models.llm.agentic.LoopPolicy
 import repcheck.shared.models.llm.tool.LlmTool
 
 /** A task spec fully resolved at load: its bound tools (descriptions applied) and its loop policy. */
-final private[engine] case class ResolvedTaskSpec[F[_]](tools: List[LlmTool[F]], policy: LoopPolicy)
+final private[engine] case class ResolvedTaskSpec[F[_]](tools: List[LlmTool[F, ?, ?]], policy: LoopPolicy)
 
 final class DefaultToolRegistry[F[_]] private (resolved: Map[String, ResolvedTaskSpec[F]]) extends ToolRegistry[F] {
 
-  def toolsFor(taskSpec: String): Either[UnknownTaskSpec, List[LlmTool[F]]] =
+  def toolsFor(taskSpec: String): Either[UnknownTaskSpec, List[LlmTool[F, ?, ?]]] =
     lookup(taskSpec).map(_.tools)
 
   def policyFor(taskSpec: String): Either[UnknownTaskSpec, LoopPolicy] =
@@ -38,7 +38,7 @@ object DefaultToolRegistry {
    */
   def load[F[_]: Concurrent](
     loader: PromptLoader[F],
-    available: Map[String, LlmTool[F]],
+    available: Map[String, LlmTool[F, ?, ?]],
     taskSpecNames: List[String],
     concurrency: Int,
   ): F[ToolRegistry[F]] =
@@ -48,7 +48,7 @@ object DefaultToolRegistry {
 
   private def resolveTaskSpec[F[_]: Concurrent](
     loader: PromptLoader[F],
-    available: Map[String, LlmTool[F]],
+    available: Map[String, LlmTool[F, ?, ?]],
     taskSpecName: String,
     concurrency: Int,
   ): F[ResolvedTaskSpec[F]] =
@@ -59,14 +59,21 @@ object DefaultToolRegistry {
 
   private def bindTool[F[_]: Concurrent](
     loader: PromptLoader[F],
-    available: Map[String, LlmTool[F]],
+    available: Map[String, LlmTool[F, ?, ?]],
     taskSpecName: String,
     binding: ToolBinding,
-  ): F[LlmTool[F]] =
+  ): F[LlmTool[F, ?, ?]] =
     available.get(binding.name) match {
-      case None => UnknownToolBinding(taskSpecName, binding.name, available.keySet).raiseError[F, LlmTool[F]]
+      case None => UnknownToolBinding(taskSpecName, binding.name, available.keySet).raiseError[F, LlmTool[F, ?, ?]]
       case Some(impl) =>
-        loader.loadToolDescription(binding.descriptionRef).map(description => new DescribedTool[F](impl, description))
+        loader.loadToolDescription(binding.descriptionRef).map(description => describe(impl, description))
     }
+
+  /**
+   * Wrap an injected tool with its GCS description; the helper opens the heterogeneous tool's In/Out for
+   * [[DescribedTool]].
+   */
+  private def describe[F[_], In, Out](tool: LlmTool[F, In, Out], description: String): LlmTool[F, In, Out] =
+    new DescribedTool(tool, description)
 
 }

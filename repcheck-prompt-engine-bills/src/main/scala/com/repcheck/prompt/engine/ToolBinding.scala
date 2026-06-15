@@ -12,4 +12,13 @@ final case class ToolBinding(name: String, descriptionRef: String)
 
 object ToolBinding {
   given Decoder[ToolBinding] = deriveDecoder[ToolBinding]
+
+  /** GCS object name for a tool description: `<prefix>/<ref>-<version>.md` (guarded against the GCS limit). */
+  def descriptionObjectName(
+    descriptionRef: String,
+    prefix: String,
+    version: String,
+  ): Either[PromptObjectNameTooLong, String] =
+    GcsObjectName.guard(s"${GcsObjectName.join(prefix, descriptionRef)}-$version.md")
+
 }

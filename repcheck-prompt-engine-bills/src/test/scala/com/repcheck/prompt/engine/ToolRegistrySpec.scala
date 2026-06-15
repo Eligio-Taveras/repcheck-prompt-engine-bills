@@ -24,7 +24,7 @@ class ToolRegistrySpec extends AsyncFlatSpec with AsyncIOSpec with Matchers {
   ): InMemoryPromptLoader =
     new InMemoryPromptLoader(Map.empty, taskSpecs, toolDescriptions)
 
-  private val available: Map[String, LlmTool[IO]] = Map("search_taxonomy" -> new EchoTool("search_taxonomy"))
+  private val available: Map[String, LlmTool[IO, ?, ?]] = Map("search_taxonomy" -> new EchoTool("search_taxonomy"))
 
   "load" should "bind declared tools with their GCS description overriding the code default" in {
     DefaultToolRegistry.load[IO](loader(), available, List("cluster-concept-identification"), 4).asserting { registry =>

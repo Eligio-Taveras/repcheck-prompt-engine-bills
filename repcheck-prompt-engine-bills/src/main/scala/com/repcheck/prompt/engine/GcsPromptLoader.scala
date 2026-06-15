@@ -13,7 +13,8 @@ import repcheck.shared.models.prompt.PromptFragment
 
 /**
  * [[PromptLoader]] backed by the GCS Java SDK (wrapped in `Sync[F].blocking`). Resolves a logical name to its versioned
- * object via [[GcsObjectName]] (rejecting an over-long key with [[PromptObjectNameTooLong]]); fragments + task specs
+ * object via the per-type naming methods ([[GcsObjectName.fragment]], [[AgenticTaskSpec.objectName]],
+ * [[ToolBinding.descriptionObjectName]]) — each guarding against [[PromptObjectNameTooLong]]; fragments + task specs
  * are decoded, tool descriptions returned as raw text. A missing object is a typed [[PromptObjectNotFound]] and a
  * malformed one a typed [[PromptFragmentParseFailed]]/[[PromptTaskSpecParseFailed]] — never a raw SDK or circe
  * exception. Loads happen ONCE at startup, so this path is intentionally retry-free — a transient GCS failure fails
@@ -30,14 +31,14 @@ final class GcsPromptLoader[F[_]: Sync](storage: Storage, bucket: String, prefix
     }
 
   def loadTaskSpec(taskSpecName: String): F[AgenticTaskSpec] =
-    GcsObjectName.taskSpec(prefix, taskSpecName, version).liftTo[F].flatMap { objectName =>
+    AgenticTaskSpec.objectName(taskSpecName, prefix, version).liftTo[F].flatMap { objectName =>
       readObject(objectName, taskSpecName).flatMap { raw =>
         decode[AgenticTaskSpec](raw).leftMap(e => PromptTaskSpecParseFailed(taskSpecName, e.getMessage)).liftTo[F]
       }
     }
 
   def loadToolDescription(descriptionRef: String): F[String] =
-    GcsObjectName.toolDescription(prefix, descriptionRef, version).liftTo[F].flatMap(readObject(_, descriptionRef))
+    ToolBinding.descriptionObjectName(descriptionRef, prefix, version).liftTo[F].flatMap(readObject(_, descriptionRef))
 
   private def readObject(objectName: String, id: String): F[String] =
     Sync[F].blocking(Option(storage.get(BlobId.of(bucket, objectName)))).flatMap {
