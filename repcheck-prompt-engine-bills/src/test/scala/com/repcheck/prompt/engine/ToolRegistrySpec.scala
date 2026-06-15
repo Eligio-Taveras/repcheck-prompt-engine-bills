@@ -70,6 +70,13 @@ class ToolRegistrySpec extends AsyncFlatSpec with AsyncIOSpec with Matchers {
       }
   }
 
+  it should "fail loudly at load on a non-positive concurrency" in {
+    DefaultToolRegistry.load[IO](loader(), available, List("cluster-concept-identification"), 0).attempt.asserting {
+      case Left(e: InvalidConcurrency) => e.concurrency shouldBe 0
+      case other                       => fail(s"expected InvalidConcurrency, got $other")
+    }
+  }
+
   "lookups" should "return Left(UnknownTaskSpec) for a task spec that was not loaded — total, no throw" in {
     DefaultToolRegistry.load[IO](loader(), available, List("cluster-concept-identification"), 4).asserting { registry =>
       val _ = registry.toolsFor("nope") match {

@@ -27,14 +27,14 @@ object DefaultToolRegistry {
 
   /**
    * Read + validate every task spec ONCE, resolving task specs (and the tools within each) concurrently up to
-   * `concurrency`. Fails loudly here — not at classify time — on a malformed task-spec document
-   * ([[PromptTaskSpecParseFailed]]) or a declared tool name with no matching code impl ([[UnknownToolBinding]]). After
-   * this returns, lookups are pure and total.
+   * `concurrency`. Fails loudly here — not at classify time — on a non-positive `concurrency` ([[InvalidConcurrency]]),
+   * a malformed task-spec document ([[PromptTaskSpecParseFailed]]), or a declared tool name with no matching code impl
+   * ([[UnknownToolBinding]]). After this returns, lookups are pure and total.
    *
    * @param available
    *   the code [[LlmTool]] impls keyed by their stable name; a task spec may grant any subset (least privilege)
    * @param concurrency
-   *   max in-flight GCS loads (bounds both the task-spec fan-out and the per-task-spec tool fan-out)
+   *   max in-flight GCS loads (MUST be >= 1; bounds both the task-spec fan-out and the per-task-spec tool fan-out)
    */
   def load[F[_]: Concurrent](
     loader: PromptLoader[F],
@@ -42,9 +42,13 @@ object DefaultToolRegistry {
     taskSpecNames: List[String],
     concurrency: Int,
   ): F[ToolRegistry[F]] =
-    taskSpecNames
-      .parTraverseN(concurrency)(name => resolveTaskSpec(loader, available, name, concurrency).map(name -> _))
-      .map(pairs => new DefaultToolRegistry[F](pairs.toMap))
+    if (concurrency < 1) {
+      InvalidConcurrency(concurrency).raiseError[F, ToolRegistry[F]]
+    } else {
+      taskSpecNames
+        .parTraverseN(concurrency)(name => resolveTaskSpec(loader, available, name, concurrency).map(name -> _))
+        .map(pairs => new DefaultToolRegistry[F](pairs.toMap))
+    }
 
   private def resolveTaskSpec[F[_]: Concurrent](
     loader: PromptLoader[F],
