@@ -3,10 +3,11 @@ package com.repcheck.prompt.engine
 import java.nio.charset.StandardCharsets
 
 /**
- * The versioned object-name convention (semver in filename, the universal rule). A logical name maps to
- * `<prefix>/<name>-<version>.json` for a prompt fragment, and `<prefix>/task-specs/<name>-<version>.json` for a task
- * spec. The constructed key is guarded against GCS's object-name length limit — a too-long name fails loudly with
- * [[PromptObjectNameTooLong]] at startup rather than surfacing as an opaque GCS error. Pure, so tested without GCS.
+ * GCS object-name mapping for prompt fragments, plus the shared mechanics ([[join]], [[guard]]) that the per-type
+ * naming methods reuse ([[AgenticTaskSpec.objectName]], [[ToolBinding.descriptionObjectName]]). A fragment maps to
+ * `<prefix>/<name>-<version>.json`. The constructed key is guarded against GCS's object-name length limit — a too-long
+ * name fails loudly with [[PromptObjectNameTooLong]] at startup rather than surfacing as an opaque GCS error. Pure, so
+ * tested without GCS.
  */
 private[engine] object GcsObjectName {
 
@@ -14,12 +15,10 @@ private[engine] object GcsObjectName {
   val maxObjectNameBytes: Int = 1024
 
   def fragment(prefix: String, fragmentName: String, version: String): Either[PromptObjectNameTooLong, String] =
-    guarded(s"${join(prefix, fragmentName)}-$version.json")
+    guard(s"${join(prefix, fragmentName)}-$version.json")
 
-  def taskSpec(prefix: String, taskSpecName: String, version: String): Either[PromptObjectNameTooLong, String] =
-    guarded(s"${join(prefix, "task-specs", taskSpecName)}-$version.json")
-
-  private def guarded(objectName: String): Either[PromptObjectNameTooLong, String] = {
+  /** Guard a constructed object name against the GCS length limit. Shared by the per-type naming methods. */
+  private[engine] def guard(objectName: String): Either[PromptObjectNameTooLong, String] = {
     val bytes = objectName.getBytes(StandardCharsets.UTF_8).length
     if (bytes > maxObjectNameBytes) {
       Left(PromptObjectNameTooLong(objectName, bytes, maxObjectNameBytes))
@@ -28,7 +27,8 @@ private[engine] object GcsObjectName {
     }
   }
 
-  private def join(parts: String*): String =
+  /** Join path parts, trimming stray slashes and dropping empties. Shared by the per-type naming methods. */
+  private[engine] def join(parts: String*): String =
     parts.iterator.map(trimSlashes).filter(_.nonEmpty).mkString("/")
 
   private def trimSlashes(part: String): String = {

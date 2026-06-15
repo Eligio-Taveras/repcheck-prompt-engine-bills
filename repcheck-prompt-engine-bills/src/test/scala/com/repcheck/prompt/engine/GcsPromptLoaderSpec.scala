@@ -22,7 +22,7 @@ class GcsPromptLoaderSpec extends AsyncFlatSpec with AsyncIOSpec with Matchers {
     """{"name":"system-cluster-concept-identification","stage":"system","weight":1.0,"version":"v1.0.0","content":"fragment body"}"""
 
   private val taskSpecJson =
-    """{"name":"cluster-concept-identification","chain":[{"stage":"system","promptFragmentNames":["system-cluster-concept-identification"],"weight":1.0}],"tools":[{"name":"search_taxonomy","descriptionBlock":"tools/search-taxonomy"}],"loopPolicy":{"maxIterations":3,"perCallTimeoutSeconds":120,"tokenBudget":null}}"""
+    """{"name":"cluster-concept-identification","chain":[{"stage":"system","promptFragmentNames":["system-cluster-concept-identification"],"weight":1.0}],"tools":[{"name":"search_taxonomy","descriptionRef":"tools/search-taxonomy"}],"loopPolicy":{"maxIterations":3,"perCallTimeoutSeconds":120,"tokenBudget":null}}"""
 
   private def storageWith(objects: (String, String)*): Storage = {
     val storage = LocalStorageHelper.getOptions.getService
@@ -55,6 +55,11 @@ class GcsPromptLoaderSpec extends AsyncFlatSpec with AsyncIOSpec with Matchers {
       taskSpec.tools.map(_.name) shouldBe List("search_taxonomy")
       taskSpec.loopPolicy.maxIterations shouldBe 3
     }
+  }
+
+  "loadToolDescription" should "read a tool description as raw text by its versioned .md object name" in {
+    val storage = storageWith("bills/tools/search-taxonomy-v1.0.0.md" -> "Searches the active taxonomy.")
+    loader(storage).loadToolDescription("tools/search-taxonomy").asserting(_ shouldBe "Searches the active taxonomy.")
   }
 
   it should "raise PromptObjectNotFound for a missing object" in {

@@ -15,11 +15,6 @@ class GcsObjectNameSpec extends AnyFlatSpec with Matchers {
       Right("bills/tools/search-taxonomy-v2.1.0.json")
   }
 
-  "taskSpec" should "place a json task spec under task-specs/ with the version suffix" in {
-    GcsObjectName.taskSpec("bills", "taxonomy-build", "v1.0.0") shouldBe
-      Right("bills/task-specs/taxonomy-build-v1.0.0.json")
-  }
-
   it should "tolerate surrounding slashes in the prefix" in {
     GcsObjectName.fragment("/bills/", "x", "v1.0.0") shouldBe Right("bills/x-v1.0.0.json")
   }

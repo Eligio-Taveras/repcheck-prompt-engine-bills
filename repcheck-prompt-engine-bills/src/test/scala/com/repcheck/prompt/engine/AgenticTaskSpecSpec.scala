@@ -17,7 +17,7 @@ class AgenticTaskSpecSpec extends AnyFlatSpec with Matchers {
       |    {"stage":"system","promptFragmentNames":["system-cluster-concept-identification"],"weight":1.0},
       |    {"stage":"custom","promptFragmentNames":["tool-use-follow-up"],"weight":1.0}
       |  ],
-      |  "tools": [{"name":"search_taxonomy","descriptionBlock":"tools/search-taxonomy"}],
+      |  "tools": [{"name":"search_taxonomy","descriptionRef":"tools/search-taxonomy"}],
       |  "loopPolicy": {"maxIterations": 3, "perCallTimeoutSeconds": 120, "tokenBudget": null}
       |}""".stripMargin
 
@@ -49,6 +49,11 @@ class AgenticTaskSpecSpec extends AnyFlatSpec with Matchers {
     val withBudget =
       """{"name":"x","chain":[],"tools":[],"loopPolicy":{"maxIterations":1,"perCallTimeoutSeconds":30,"tokenBudget":4096}}"""
     decode[AgenticTaskSpec](withBudget).map(_.loopPolicy.toLoopPolicy.tokenBudget) shouldBe Right(Some(4096))
+  }
+
+  "objectName" should "place a task spec under task-specs/ with the version suffix" in {
+    AgenticTaskSpec.objectName("taxonomy-build", "bills", "v1.0.0") shouldBe
+      Right("bills/task-specs/taxonomy-build-v1.0.0.json")
   }
 
 }
