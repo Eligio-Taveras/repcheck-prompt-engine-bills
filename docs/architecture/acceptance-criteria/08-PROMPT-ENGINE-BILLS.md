@@ -7,6 +7,22 @@
 
 ---
 
+> ## ⚠️ AS-BUILT RECONCILIATION (F4, 2026-06)
+>
+> The bill prompt engine was built as an **agentic decomposition** engine — **not** the staged single-shot chain described below. They are different consumers: the agentic engine serves bill **decomposition**; the staged chain (this AC's analysis profiles) serves bill **analysis** (Component 10), which is **not yet built**.
+>
+> **As-built classes** (authoritative: `session_notes/bill-decomposition/uml/04-F4-prompt-engine.mmd`):
+> - `AgenticTaskSpec` — the GCS task-spec doc: a staged `chain` (shared §1.7 `StageConfig`s over `PromptFragment`s) **plus** the agentic `tools` it grants and its `loopPolicy`. `promptProfile` bridges the chain to the shared assembler.
+> - `PromptLoader` / `GcsPromptLoader` — fetch + decode a `PromptFragment` by name, an `AgenticTaskSpec` by name, and a tool description as raw text by ref (each object name guarded against GCS's 1024-byte limit).
+> - `PromptAssembler` / `DefaultPromptAssembler` — compose the task spec's `chain` into an `AssembledPrompt`, delegating to the shared §1.7 `DefaultChainAssembler` (stage order + `WeightTranslator` + `{{context}}` injection). Tools/loop ride on the task spec but are consumed by the registry/runner, not here.
+> - `ToolRegistry` / `DefaultToolRegistry` — bind each task spec's GCS-described tools to injected `LlmTool[F, In, Out]` impls (overriding only `ToolSpec.description`; schemas/examples stay codec-derived). Built once at load (concurrency-bounded), then pure + total lookups.
+>
+> **Renames carried in from this AC** (shared §1.7, shared-models ≥ 0.1.59): `InstructionBlock` → `PromptFragment`; `StageConfig.blockNames` → `promptFragmentNames`; `LlmTool[F]` (abstract `In`/`Out`) → `LlmTool[F, In, Out]` + a default `invoke` round-trip. GCS layout: task specs live under `task-specs/`, tool descriptions are raw `.md`.
+>
+> The staged-chain **analysis** design below (`BillPromptAssembler`, `BillContextInjector`, `ContextFormatter`, the pass1/2/3 + `concept-simplification` / `section-classification` profiles) remains the spec for the **deferred analysis path** — retained here, not yet implemented.
+
+---
+
 ## System Context
 
 ### What This Component Does
